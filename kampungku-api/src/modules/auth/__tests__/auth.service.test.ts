@@ -23,6 +23,7 @@ jest.mock('../../../config/env', () => ({
 }));
 
 import { prisma } from '../../../config/database';
+import { redis } from '../../../config/redis';
 import { authService } from '../auth.service';
 
 describe('authService.register', () => {
@@ -47,6 +48,12 @@ describe('authService.register', () => {
     expect(result.user).not.toHaveProperty('passwordHash');
     expect(typeof result.accessToken).toBe('string');
     expect(typeof result.refreshToken).toBe('string');
+    expect(redis.set).toHaveBeenCalledWith(
+      'refresh:uuid-123',
+      expect.any(String),
+      'EX',
+      604800,
+    );
   });
 
   it('throws AppError 409 when email already registered', async () => {
@@ -75,6 +82,6 @@ describe('authService.register', () => {
 
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0][0];
     expect(createCall.data.passwordHash).toBeDefined();
-    expect(createCall.data.passwordHash).not.toBe('Password1');
+    expect(createCall.data.passwordHash).toMatch(/^\$2[ab]\$/);
   });
 });

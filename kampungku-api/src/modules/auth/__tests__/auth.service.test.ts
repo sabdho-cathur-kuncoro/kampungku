@@ -211,3 +211,47 @@ describe('authService.refresh', () => {
     });
   });
 });
+
+describe('authService.logout', () => {
+  it('deletes Redis session on valid token', async () => {
+    const token = jwt.sign({ sub: 'uuid-logout-1' }, REFRESH_SECRET, { expiresIn: '7d' });
+
+    await authService.logout(token);
+
+    expect(redis.del).toHaveBeenCalledWith('refresh:uuid-logout-1');
+  });
+
+  it('does not throw and does not call redis.del on invalid JWT', async () => {
+    await expect(authService.logout('not-a-jwt')).resolves.toBeUndefined();
+    expect(redis.del).not.toHaveBeenCalled();
+  });
+});
+
+describe('authService.me', () => {
+  it('returns user profile without passwordHash', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'uuid-me-1',
+      name: 'Budi',
+      email: 'budi@test.com',
+      phone: '08123456789',
+      role: 'WARGA',
+      isActive: true,
+      createdAt: new Date('2026-01-01'),
+    });
+
+    const result = await authService.me('uuid-me-1');
+
+    expect(result.email).toBe('budi@test.com');
+    expect(result).not.toHaveProperty('passwordHash');
+    expect(result.isActive).toBe(true);
+  });
+
+  it('throws AppError 404 when user not found', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(authService.me('nonexistent-id')).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'User tidak ditemukan',
+    });
+  });
+});

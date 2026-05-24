@@ -145,4 +145,34 @@ export const authService = {
 
     return { accessToken, refreshToken };
   },
+
+  async logout(token: string) {
+    try {
+      const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { sub: string };
+      await redis.del(`refresh:${payload.sub}`);
+    } catch {
+      // Token invalid or expired — session already gone, treat as success
+    }
+  },
+
+  async me(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError('User tidak ditemukan', 404);
+    }
+
+    return user;
+  },
 };

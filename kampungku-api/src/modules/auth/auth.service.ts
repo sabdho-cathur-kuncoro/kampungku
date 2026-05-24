@@ -99,4 +99,50 @@ export const authService = {
 
     return { user, accessToken, refreshToken };
   },
+
+  async refresh(token: string) {
+    let userId: string;
+
+    try {
+      const payload = jwt.verify(token, env.JWT_REFRESH_SECRET) as { sub: string };
+      userId = payload.sub;
+    } catch {
+      throw new AppError('Refresh token tidak valid', 401);
+    }
+
+    const stored = await redis.get(`refresh:${userId}`);
+
+    if (!stored) {
+      throw new AppError('Sesi tidak ditemukan', 401);
+    }
+
+    if (stored !== token) {
+      throw new AppError('Refresh token tidak valid', 401);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      throw new AppError('User tidak ditemukan', 401);
+    }
+
+    const accessToken = jwt.sign(
+      { sub: user.id, role: user.role },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: env.JWT_ACCESS_EXPIRES as StringValue },
+    );
+
+    const refreshToken = jwt.sign(
+      { sub: user.id },
+      env.JWT_REFRESH_SECRET,
+      { expiresIn: env.JWT_REFRESH_EXPIRES as StringValue },
+    );
+
+    await redis.set(`refresh:${user.id}`, refreshToken, 'EX', REFRESH_TTL_SECONDS);
+
+    return { accessToken, refreshToken };
+  },
 };

@@ -10,6 +10,8 @@ jest.mock('../../../config/database', () => ({
 jest.mock('../../../config/redis', () => ({
   redis: {
     set: jest.fn().mockResolvedValue('OK'),
+    get: jest.fn(),
+    del: jest.fn().mockResolvedValue(1),
   },
 }));
 
@@ -27,10 +29,13 @@ jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
 }));
 
+import jwt from 'jsonwebtoken';
 import { prisma } from '../../../config/database';
 import { redis } from '../../../config/redis';
 import { authService } from '../auth.service';
 import bcrypt from 'bcryptjs';
+
+const REFRESH_SECRET = 'test-refresh-secret-minimum-32-characters';
 
 describe('authService.register', () => {
   it('creates user and returns tokens', async () => {
@@ -158,5 +163,51 @@ describe('authService.login', () => {
     await authService.login({ email: 'budi@test.com', password: 'Password1' });
 
     expect(bcrypt.compare).toHaveBeenCalledWith('Password1', '$2b$12$hashedpassword');
+  });
+});
+
+describe('authService.refresh', () => {
+  it('returns new accessToken and refreshToken on valid token', async () => {
+    const storedToken = jwt.sign({ sub: 'uuid-refresh-1' }, REFRESH_SECRET, { expiresIn: '7d' });
+    (redis.get as jest.Mock).mockResolvedValue(storedToken);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'uuid-refresh-1', role: 'WARGA' });
+
+    const result = await authService.refresh(storedToken);
+
+    expect(typeof result.accessToken).toBe('string');
+    expect(typeof result.refreshToken).toBe('string');
+    expect(redis.set).toHaveBeenCalledWith(
+      'refresh:uuid-refresh-1',
+      expect.any(String),
+      'EX',
+      604800,
+    );
+  });
+
+  it('throws AppError 401 on invalid JWT', async () => {
+    await expect(authService.refresh('not-a-jwt')).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Refresh token tidak valid',
+    });
+  });
+
+  it('throws AppError 401 when Redis has no session', async () => {
+    const token = jwt.sign({ sub: 'uuid-refresh-2' }, REFRESH_SECRET, { expiresIn: '7d' });
+    (redis.get as jest.Mock).mockResolvedValue(null);
+
+    await expect(authService.refresh(token)).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Sesi tidak ditemukan',
+    });
+  });
+
+  it('throws AppError 401 on token mismatch (replay attack)', async () => {
+    const token = jwt.sign({ sub: 'uuid-refresh-3' }, REFRESH_SECRET, { expiresIn: '7d' });
+    (redis.get as jest.Mock).mockResolvedValue('different-stored-token');
+
+    await expect(authService.refresh(token)).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Refresh token tidak valid',
+    });
   });
 });

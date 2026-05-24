@@ -8,6 +8,7 @@ import { AppError } from '../../utils/errors';
 import type { RegisterInput, LoginInput } from './auth.schema';
 
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DUMMY_HASH = '$2b$12$dummyhashfortimingnormalizationxx';
 
 export const authService = {
   async register(input: RegisterInput) {
@@ -60,6 +61,7 @@ export const authService = {
     });
 
     if (!found) {
+      await bcrypt.compare(input.password, DUMMY_HASH);
       throw new AppError('Email atau password salah', 401);
     }
 

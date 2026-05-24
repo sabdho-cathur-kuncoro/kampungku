@@ -105,4 +105,17 @@ describe('POST /api/v1/auth/login', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe('Email atau password salah');
   });
+
+  it('401 — inactive account', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...mockUser, isActive: false });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'budi@test.com', password: 'Password1' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe('Akun tidak aktif');
+  });
 });

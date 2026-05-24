@@ -22,9 +22,15 @@ jest.mock('../../../config/env', () => ({
   },
 }));
 
+jest.mock('bcryptjs', () => ({
+  hash: jest.fn().mockResolvedValue('$2b$12$hashedpassword'),
+  compare: jest.fn(),
+}));
+
 import { prisma } from '../../../config/database';
 import { redis } from '../../../config/redis';
 import { authService } from '../auth.service';
+import bcrypt from 'bcryptjs';
 
 describe('authService.register', () => {
   it('creates user and returns tokens', async () => {
@@ -83,5 +89,74 @@ describe('authService.register', () => {
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0][0];
     expect(createCall.data.passwordHash).toBeDefined();
     expect(createCall.data.passwordHash).toMatch(/^\$2[ab]\$/);
+  });
+});
+
+describe('authService.login', () => {
+  const mockUser = {
+    id: 'uuid-login-1',
+    name: 'Budi',
+    email: 'budi@test.com',
+    phone: '08123456789',
+    role: 'WARGA' as const,
+    passwordHash: '$2b$12$hashedpassword',
+    isActive: true,
+  };
+
+  it('returns user and tokens on valid credentials', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    const result = await authService.login({
+      email: 'budi@test.com',
+      password: 'Password1',
+    });
+
+    expect(result.user.email).toBe('budi@test.com');
+    expect(result.user).not.toHaveProperty('passwordHash');
+    expect(result.user).not.toHaveProperty('isActive');
+    expect(typeof result.accessToken).toBe('string');
+    expect(typeof result.refreshToken).toBe('string');
+    expect(redis.set).toHaveBeenCalledWith(
+      'refresh:uuid-login-1',
+      expect.any(String),
+      'EX',
+      604800,
+    );
+  });
+
+  it('throws AppError 401 when email not found', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      authService.login({ email: 'ghost@test.com', password: 'Password1' }),
+    ).rejects.toMatchObject({ statusCode: 401, message: 'Email atau password salah' });
+  });
+
+  it('throws AppError 401 when password is wrong', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+    await expect(
+      authService.login({ email: 'budi@test.com', password: 'WrongPass' }),
+    ).rejects.toMatchObject({ statusCode: 401, message: 'Email atau password salah' });
+  });
+
+  it('throws AppError 401 when account is inactive', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ ...mockUser, isActive: false });
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    await expect(
+      authService.login({ email: 'budi@test.com', password: 'Password1' }),
+    ).rejects.toMatchObject({ statusCode: 401, message: 'Akun tidak aktif' });
+  });
+
+  it('calls bcrypt.compare with input password and stored hash', async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+    await authService.login({ email: 'budi@test.com', password: 'Password1' });
+
+    expect(bcrypt.compare).toHaveBeenCalledWith('Password1', '$2b$12$hashedpassword');
   });
 });

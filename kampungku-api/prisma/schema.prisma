@@ -1,0 +1,235 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  KETUA_RT
+  BENDAHARA
+  SEKRETARIS
+  WARGA
+}
+
+enum StatusTinggal {
+  TETAP
+  KONTRAK
+  KOST
+  PINDAH
+}
+
+enum StatusIuran {
+  BELUM_BAYAR
+  MENUNGGU_VERIFIKASI
+  LUNAS
+}
+
+enum StatusSurat {
+  DIAJUKAN
+  DIPROSES
+  DISETUJUI
+  DITOLAK
+}
+
+enum StatusPengaduan {
+  BARU
+  DIPROSES
+  SELESAI
+  DITOLAK
+}
+
+enum KategoriPengumuman {
+  UMUM
+  KEGIATAN
+  KEUANGAN
+  DARURAT
+}
+
+enum JenisSurat {
+  DOMISILI
+  KETERANGAN_TIDAK_MAMPU
+  KETERANGAN_USAHA
+  PENGANTAR_KTP
+  PENGANTAR_KK
+  LAINNYA
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(150)
+  phone        String?   @db.VarChar(15)
+  passwordHash String    @map("password_hash")
+  role         Role      @default(WARGA)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  warga         Warga?
+  refreshTokens RefreshToken[]
+  pengumuman    Pengumuman[]
+  approvedSurat PermohonanSurat[] @relation("ApprovedBy")
+
+  @@map("users")
+}
+
+model Warga {
+  id           String        @id @default(uuid())
+  userId       String        @unique @map("user_id")
+  nik          String        @unique @db.Char(16)       // NIK KTP — hanya nomor, tidak ada foto
+  noKk         String        @db.Char(16) @map("no_kk") // No. Kartu Keluarga — hanya nomor
+  alamat       String
+  rtId         String        @map("rt_id")
+  statusTinggal StatusTinggal @default(TETAP) @map("status_tinggal")
+  tglMasuk     DateTime?     @map("tgl_masuk") @db.Date
+  fotoProfilUrl String?      @map("foto_profil_url")   // Cloudinary URL, opsional
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  user             User               @relation(fields: [userId], references: [id])
+  rt               RT                 @relation(fields: [rtId], references: [id])
+  anggotaKeluarga  AnggotaKeluarga[]
+  iuranTagihan     IuranTagihan[]
+  permohonanSurat  PermohonanSurat[]
+  pengaduan        Pengaduan[]
+
+  @@map("warga")
+}
+
+model AnggotaKeluarga {
+  id         String   @id @default(uuid())
+  wargaId    String   @map("warga_id")
+  nama       String   @db.VarChar(100)
+  nik        String   @db.Char(16)
+  hubungan   String   @db.VarChar(30)  // Suami, Istri, Anak, dll
+  tglLahir   DateTime @map("tgl_lahir") @db.Date
+  jenisKelamin String @map("jenis_kelamin") @db.VarChar(10)
+  pekerjaan  String?  @db.VarChar(100)
+  pendidikan String?  @db.VarChar(50)
+
+  warga Warga @relation(fields: [wargaId], references: [id], onDelete: Cascade)
+
+  @@map("anggota_keluarga")
+}
+
+model RT {
+  id        String @id @default(uuid())
+  nomorRt   String @map("nomor_rt") @db.VarChar(5)
+  nomorRw   String @map("nomor_rw") @db.VarChar(5)
+  kelurahan String @db.VarChar(100)
+  kecamatan String @db.VarChar(100)
+
+  warga        Warga[]
+  iuranTagihan IuranTagihan[]
+  pengumuman   Pengumuman[]
+
+  @@unique([nomorRt, nomorRw])
+  @@map("rt_rw")
+}
+
+model JenisIuran {
+  id          String  @id @default(uuid())
+  nama        String  @unique  @db.VarChar(100)  // "Iuran Keamanan", "Iuran Sampah", dll
+  jumlah      Decimal @db.Decimal(10, 2)
+  keterangan  String?
+  isAktif     Boolean @default(true) @map("is_aktif")
+
+  iuranTagihan IuranTagihan[]
+
+  @@map("jenis_iuran")
+}
+
+model IuranTagihan {
+  id           String      @id @default(uuid())
+  wargaId      String      @map("warga_id")
+  jenisIuranId String      @map("jenis_iuran_id")
+  rtId         String      @map("rt_id")
+  bulan        Int         // 1–12
+  tahun        Int
+  jumlah       Decimal     @db.Decimal(10, 2)
+  status       StatusIuran @default(BELUM_BAYAR)
+  tglBayar     DateTime?   @map("tgl_bayar")
+  verifiedBy   String?     @map("verified_by")
+  catatan      String?
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  warga      Warga      @relation(fields: [wargaId], references: [id])
+  jenisIuran JenisIuran @relation(fields: [jenisIuranId], references: [id])
+  rt         RT         @relation(fields: [rtId], references: [id])
+
+  @@unique([wargaId, jenisIuranId, bulan, tahun])
+  @@map("iuran_tagihan")
+}
+
+model Pengumuman {
+  id         String               @id @default(uuid())
+  judul      String               @db.VarChar(200)
+  konten     String
+  kategori   KategoriPengumuman   @default(UMUM)
+  authorId   String               @map("author_id")
+  rtId       String               @map("rt_id")
+  tglMulai   DateTime             @map("tgl_mulai")
+  tglSelesai DateTime?            @map("tgl_selesai")
+  isPinned   Boolean              @default(false) @map("is_pinned")
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  author User @relation(fields: [authorId], references: [id])
+  rt     RT   @relation(fields: [rtId], references: [id])
+
+  @@map("pengumuman")
+}
+
+model PermohonanSurat {
+  id          String      @id @default(uuid())
+  wargaId     String      @map("warga_id")
+  jenisSurat  JenisSurat  @map("jenis_surat")
+  keperluan   String
+  status      StatusSurat @default(DIAJUKAN)
+  noSurat     String?     @unique @map("no_surat")
+  approvedBy  String?     @map("approved_by")
+  alasanTolak String?     @map("alasan_tolak")
+  tglDiajukan DateTime    @default(now()) @map("tgl_diajukan")
+  tglDiproses DateTime?   @map("tgl_diproses")
+
+  warga    Warga @relation(fields: [wargaId], references: [id])
+  approver User? @relation("ApprovedBy", fields: [approvedBy], references: [id])
+
+  @@map("permohonan_surat")
+}
+
+model Pengaduan {
+  id          String          @id @default(uuid())
+  wargaId     String?         @map("warga_id")  // nullable = anonim
+  judul       String          @db.VarChar(200)
+  deskripsi   String
+  isAnonim    Boolean         @default(false) @map("is_anonim")
+  status      StatusPengaduan @default(BARU)
+  tanggapan   String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  warga Warga? @relation(fields: [wargaId], references: [id])
+
+  @@map("pengaduan")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}

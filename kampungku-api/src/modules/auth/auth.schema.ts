@@ -25,3 +25,19 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>['body'];
+
+export const refreshTokenSchema = z.object({
+  body: z.object({
+    refreshToken: z.string().min(1, 'Refresh token wajib diisi'),
+  }),
+});
+
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>['body'];
+
+export const logoutSchema = z.object({
+  body: z.object({
+    refreshToken: z.string().min(1, 'Refresh token wajib diisi'),
+  }),
+});
+
+export type LogoutInput = z.infer<typeof logoutSchema>['body'];

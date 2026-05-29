@@ -27,15 +27,3 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     next(new AppError('Token tidak valid', 401));
   }
 };
-
-export const authorize =
-  (...roles: Role[]) =>
-  (req: Request, _res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      return next(new AppError('Tidak terautentikasi', 401));
-    }
-    if (!roles.includes(req.user.role)) {
-      return next(new AppError('Tidak memiliki akses', 403));
-    }
-    next();
-  };

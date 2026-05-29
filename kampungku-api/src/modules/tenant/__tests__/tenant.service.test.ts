@@ -15,13 +15,21 @@ jest.mock('../../../config/database', () => ({
   },
 }));
 
+jest.mock('../../../config/redis', () => ({
+  redis: {
+    del: jest.fn().mockResolvedValue(1),
+  },
+}));
+
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('$2b$12$hashedpassword'),
 }));
 
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/database';
+import { redis } from '../../../config/redis';
 import { tenantService } from '../tenant.service';
+import { tenantActiveCacheKey } from '../../../middlewares/tenant.middleware';
 
 const validCreateInput = {
   nama: 'RT 05 RW 02 Sukamaju',
@@ -158,7 +166,11 @@ describe('tenantService.update', () => {
 });
 
 describe('tenantService.setActive', () => {
-  it('activates tenant', async () => {
+  beforeEach(() => {
+    (redis.del as jest.Mock).mockClear();
+  });
+
+  it('activates tenant and invalidates active-flag cache', async () => {
     (prisma.rT.findUnique as jest.Mock).mockResolvedValue({ id: 't1' });
     (prisma.rT.update as jest.Mock).mockResolvedValue({ id: 't1', isActive: true });
 
@@ -168,15 +180,17 @@ describe('tenantService.setActive', () => {
     expect(prisma.rT.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { isActive: true } }),
     );
+    expect(redis.del).toHaveBeenCalledWith(tenantActiveCacheKey('t1'));
   });
 
-  it('deactivates tenant', async () => {
+  it('deactivates tenant and invalidates cache', async () => {
     (prisma.rT.findUnique as jest.Mock).mockResolvedValue({ id: 't1' });
     (prisma.rT.update as jest.Mock).mockResolvedValue({ id: 't1', isActive: false });
 
     const result = await tenantService.setActive('t1', false);
 
     expect(result.isActive).toBe(false);
+    expect(redis.del).toHaveBeenCalledWith(tenantActiveCacheKey('t1'));
   });
 });
 

@@ -8,7 +8,8 @@ import {
   deactivateTenantController,
   listUsersController,
 } from './tenant.controller';
-import { authenticate, authorize } from '../../middlewares/auth.middleware';
+import { authenticate } from '../../middlewares/auth.middleware';
+import { authorize } from '../../middlewares/rbac.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import {
   createTenantSchema,

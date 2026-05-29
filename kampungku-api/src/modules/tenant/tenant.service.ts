@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { redis } from '../../config/redis';
+import { tenantActiveCacheKey } from '../../middlewares/tenant.middleware';
 import { AppError } from '../../utils/errors';
 import type { CreateTenantInput, UpdateTenantInput } from './tenant.schema';
 
@@ -127,11 +129,16 @@ export const tenantService = {
     const existing = await prisma.rT.findUnique({ where: { id }, select: { id: true } });
     if (!existing) throw new AppError('Tenant tidak ditemukan', 404);
 
-    return prisma.rT.update({
+    const updated = await prisma.rT.update({
       where: { id },
       data: { isActive },
       select: TENANT_SELECT,
     });
+
+    // Invalidate the tenantScope active-flag cache so the change takes effect immediately.
+    await redis.del(tenantActiveCacheKey(id));
+
+    return updated;
   },
 
   async listUsers(tenantId?: string) {

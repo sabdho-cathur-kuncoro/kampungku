@@ -8,6 +8,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.router';
 import { adminRouter } from './modules/tenant/tenant.router';
+import { wargaRouter } from './modules/warga/warga.router';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/warga', wargaRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' });

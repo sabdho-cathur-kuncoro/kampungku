@@ -35,9 +35,15 @@ const REFRESH_SECRET = 'test-refresh-secret-minimum-32-characters';
 
 describe('POST /api/v1/auth/refresh', () => {
   it('200 — valid refresh token returns new access and refresh tokens', async () => {
-    const refreshToken = jwt.sign({ sub: 'uuid-1' }, REFRESH_SECRET, { expiresIn: '7d' });
+    const refreshToken = jwt.sign({ sub: 'uuid-1', tenantId: 'tenant-1' }, REFRESH_SECRET, {
+      expiresIn: '7d',
+    });
     (redis.get as jest.Mock).mockResolvedValue(refreshToken);
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'uuid-1', role: 'WARGA' });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'uuid-1',
+      role: 'WARGA',
+      tenantId: 'tenant-1',
+    });
 
     const res = await request(app)
       .post('/api/v1/auth/refresh')

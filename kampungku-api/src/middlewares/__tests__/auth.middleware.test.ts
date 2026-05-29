@@ -27,14 +27,33 @@ function makeNext(): jest.Mock {
 
 describe('authenticate middleware', () => {
   it('sets req.user and calls next() with no args on valid Bearer token', () => {
-    const token = jwt.sign({ sub: 'user-id-1', role: 'WARGA' }, SECRET, { expiresIn: '15m' });
+    const token = jwt.sign(
+      { sub: 'user-id-1', role: 'WARGA', tenantId: 'tenant-1' },
+      SECRET,
+      { expiresIn: '15m' },
+    );
     const req = makeReq(`Bearer ${token}`) as Request;
     const next = makeNext();
 
     authenticate(req, makeRes() as Response, next as NextFunction);
 
     expect(next).toHaveBeenCalledWith();
-    expect(req.user).toEqual({ id: 'user-id-1', role: 'WARGA' });
+    expect(req.user).toEqual({ id: 'user-id-1', role: 'WARGA', tenantId: 'tenant-1' });
+  });
+
+  it('sets req.user.tenantId=null for SUPER_ADMIN token', () => {
+    const token = jwt.sign(
+      { sub: 'super-id', role: 'SUPER_ADMIN', tenantId: null },
+      SECRET,
+      { expiresIn: '15m' },
+    );
+    const req = makeReq(`Bearer ${token}`) as Request;
+    const next = makeNext();
+
+    authenticate(req, makeRes() as Response, next as NextFunction);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.user).toEqual({ id: 'super-id', role: 'SUPER_ADMIN', tenantId: null });
   });
 
   it('calls next(AppError 401) when Authorization header is missing', () => {

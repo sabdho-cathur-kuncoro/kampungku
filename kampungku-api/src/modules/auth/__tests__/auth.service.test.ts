@@ -4,6 +4,9 @@ jest.mock('../../../config/database', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    rT: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
@@ -38,24 +41,35 @@ import bcrypt from 'bcryptjs';
 const REFRESH_SECRET = 'test-refresh-secret-minimum-32-characters';
 
 describe('authService.register', () => {
+  const TENANT_ID = 'tenant-uuid-1';
+
+  beforeEach(() => {
+    (prisma.rT.findUnique as jest.Mock).mockResolvedValue({ id: TENANT_ID, isActive: true });
+  });
+
   it('creates user and returns tokens', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.user.create as jest.Mock).mockResolvedValue({
       id: 'uuid-123',
+      tenantId: TENANT_ID,
       name: 'Budi',
       email: 'budi@test.com',
       phone: '08123456789',
       role: 'WARGA',
     });
 
-    const result = await authService.register({
-      name: 'Budi',
-      email: 'budi@test.com',
-      password: 'Password1',
-      phone: '08123456789',
-    });
+    const result = await authService.register(
+      {
+        name: 'Budi',
+        email: 'budi@test.com',
+        password: 'Password1',
+        phone: '08123456789',
+      },
+      TENANT_ID,
+    );
 
     expect(result.user.email).toBe('budi@test.com');
+    expect(result.user.tenantId).toBe(TENANT_ID);
     expect(result.user).not.toHaveProperty('passwordHash');
     expect(typeof result.accessToken).toBe('string');
     expect(typeof result.refreshToken).toBe('string');
@@ -71,35 +85,56 @@ describe('authService.register', () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
 
     await expect(
-      authService.register({
-        name: 'Another',
-        email: 'existing@test.com',
-        password: 'Password1',
-      }),
+      authService.register(
+        {
+          name: 'Another',
+          email: 'existing@test.com',
+          password: 'Password1',
+        },
+        TENANT_ID,
+      ),
     ).rejects.toMatchObject({ statusCode: 409, message: 'Email sudah terdaftar' });
+  });
+
+  it('throws AppError 404 when tenant not found', async () => {
+    (prisma.rT.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      authService.register(
+        { name: 'X', email: 'x@test.com', password: 'Password1' },
+        'nonexistent-tenant',
+      ),
+    ).rejects.toMatchObject({ statusCode: 404, message: 'Tenant tidak ditemukan' });
   });
 
   it('bcrypt hashes password before saving', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.user.create as jest.Mock).mockResolvedValue({
       id: 'uuid-456',
+      tenantId: TENANT_ID,
       name: 'Sari',
       email: 'sari@test.com',
       phone: null,
       role: 'WARGA',
     });
 
-    await authService.register({ name: 'Sari', email: 'sari@test.com', password: 'Password1' });
+    await authService.register(
+      { name: 'Sari', email: 'sari@test.com', password: 'Password1' },
+      TENANT_ID,
+    );
 
     const createCall = (prisma.user.create as jest.Mock).mock.calls[0][0];
     expect(createCall.data.passwordHash).toBeDefined();
     expect(createCall.data.passwordHash).toMatch(/^\$2[ab]\$/);
+    expect(createCall.data.tenantId).toBe(TENANT_ID);
   });
 });
 
 describe('authService.login', () => {
+  const TENANT_ID = 'tenant-login-1';
   const mockUser = {
     id: 'uuid-login-1',
+    tenantId: TENANT_ID,
     name: 'Budi',
     email: 'budi@test.com',
     phone: '08123456789',
@@ -107,6 +142,10 @@ describe('authService.login', () => {
     passwordHash: '$2b$12$hashedpassword',
     isActive: true,
   };
+
+  beforeEach(() => {
+    (prisma.rT.findUnique as jest.Mock).mockResolvedValue({ id: TENANT_ID, isActive: true });
+  });
 
   it('returns user and tokens on valid credentials', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
@@ -118,6 +157,7 @@ describe('authService.login', () => {
     });
 
     expect(result.user.email).toBe('budi@test.com');
+    expect(result.user.tenantId).toBe(TENANT_ID);
     expect(result.user).not.toHaveProperty('passwordHash');
     expect(result.user).not.toHaveProperty('isActive');
     expect(typeof result.accessToken).toBe('string');
@@ -168,9 +208,17 @@ describe('authService.login', () => {
 
 describe('authService.refresh', () => {
   it('returns new accessToken and refreshToken on valid token', async () => {
-    const storedToken = jwt.sign({ sub: 'uuid-refresh-1' }, REFRESH_SECRET, { expiresIn: '7d' });
+    const storedToken = jwt.sign(
+      { sub: 'uuid-refresh-1', tenantId: 'tenant-refresh-1' },
+      REFRESH_SECRET,
+      { expiresIn: '7d' },
+    );
     (redis.get as jest.Mock).mockResolvedValue(storedToken);
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'uuid-refresh-1', role: 'WARGA' });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      id: 'uuid-refresh-1',
+      role: 'WARGA',
+      tenantId: 'tenant-refresh-1',
+    });
 
     const result = await authService.refresh(storedToken);
 

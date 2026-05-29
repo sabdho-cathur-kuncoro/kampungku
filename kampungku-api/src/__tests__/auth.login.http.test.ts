@@ -4,6 +4,9 @@ jest.mock('../config/database', () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    rT: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
@@ -33,8 +36,10 @@ import { prisma } from '../config/database';
 import bcrypt from 'bcryptjs';
 import app from '../app';
 
+const TENANT_ID = 'tenant-login-http-1';
 const mockUser = {
   id: 'uuid-login-http-1',
+  tenantId: TENANT_ID,
   name: 'Budi',
   email: 'budi@test.com',
   phone: '08123456789',
@@ -44,6 +49,10 @@ const mockUser = {
 };
 
 describe('POST /api/v1/auth/login', () => {
+  beforeEach(() => {
+    (prisma.rT.findUnique as jest.Mock).mockResolvedValue({ id: TENANT_ID, isActive: true });
+  });
+
   it('200 — valid credentials returns user + tokens', async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);

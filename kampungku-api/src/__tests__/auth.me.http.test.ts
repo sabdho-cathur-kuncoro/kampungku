@@ -34,9 +34,14 @@ const ACCESS_SECRET = 'test-access-secret-minimum-32-characters';
 
 describe('GET /api/v1/auth/me', () => {
   it('200 — returns user profile for authenticated request', async () => {
-    const token = jwt.sign({ sub: 'uuid-me-1', role: 'WARGA' }, ACCESS_SECRET, { expiresIn: '15m' });
+    const token = jwt.sign(
+      { sub: 'uuid-me-1', role: 'WARGA', tenantId: 'tenant-me-1' },
+      ACCESS_SECRET,
+      { expiresIn: '15m' },
+    );
     (prisma.user.findUnique as jest.Mock).mockResolvedValue({
       id: 'uuid-me-1',
+      tenantId: 'tenant-me-1',
       name: 'Budi',
       email: 'budi@test.com',
       phone: '08123456789',

@@ -1,148 +1,189 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🌱 Memulai seeding database KampungKu...");
+interface TenantSeed {
+  slug: string;
+  nama: string;
+  nomorRt: string;
+  nomorRw: string;
+  kelurahan: string;
+  kecamatan: string;
+  adminEmail: string;
+  adminName: string;
+  adminPhone: string;
+}
 
-  // ─── 1. Buat data RT/RW ───────────────────────────────────────────────────
-  const rt = await prisma.rT.upsert({
-    where: { nomorRt_nomorRw: { nomorRt: "01", nomorRw: "01" } },
-    update: {},
+const TENANTS: TenantSeed[] = [
+  {
+    slug: "rt01-rw01-kelurahan-contoh",
+    nama: "RT 01 RW 01 Kelurahan Contoh",
+    nomorRt: "01",
+    nomorRw: "01",
+    kelurahan: "Kelurahan Contoh",
+    kecamatan: "Kecamatan Contoh",
+    adminEmail: "admin@kampungku.id",
+    adminName: "Administrator RT 01",
+    adminPhone: "081200000000",
+  },
+  {
+    slug: "rt02-rw03-mawar",
+    nama: "RT 02 RW 03 Kel. Mawar",
+    nomorRt: "02",
+    nomorRw: "03",
+    kelurahan: "Kelurahan Mawar",
+    kecamatan: "Kecamatan Melati",
+    adminEmail: "admin.mawar@kampungku.id",
+    adminName: "Administrator RT 02 Mawar",
+    adminPhone: "081200000100",
+  },
+];
+
+const JENIS_IURAN = [
+  { nama: "Iuran RT", jumlah: 10000, keterangan: "Iuran rutin bulanan RT" },
+  { nama: "Iuran Keamanan", jumlah: 15000, keterangan: "Iuran untuk biaya siskamling" },
+  { nama: "Iuran Sampah", jumlah: 5000, keterangan: "Iuran pengangkutan sampah" },
+];
+
+async function upsertUser(args: {
+  email: string;
+  name: string;
+  phone: string;
+  password: string;
+  role: Role;
+  tenantId: string | null;
+}) {
+  const passwordHash = await bcrypt.hash(args.password, 12);
+  return prisma.user.upsert({
+    where: { email: args.email },
+    update: { tenantId: args.tenantId, role: args.role },
     create: {
-      nomorRt: "01",
-      nomorRw: "01",
-      kelurahan: "Kelurahan Contoh",
-      kecamatan: "Kecamatan Contoh",
-    },
-  });
-  console.log(`✅ RT dibuat: RT ${rt.nomorRt} / RW ${rt.nomorRw}`);
-
-  // ─── 2. Buat akun Admin ───────────────────────────────────────────────────
-  const passwordHash = await bcrypt.hash("Admin1234!", 12);
-
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@kampungku.id" },
-    update: {},
-    create: {
-      name: "Administrator",
-      email: "admin@kampungku.id",
-      phone: "081200000000",
+      name: args.name,
+      email: args.email,
+      phone: args.phone,
       passwordHash,
-      role: "ADMIN",
+      role: args.role,
+      tenantId: args.tenantId,
       isActive: true,
     },
   });
-  console.log(`✅ Admin dibuat: ${admin.email}`);
+}
 
-  // ─── 3. Buat akun Ketua RT ────────────────────────────────────────────────
-  const ketuaHash = await bcrypt.hash("Ketua1234!", 12);
+async function main() {
+  console.log("🌱 Memulai seeding database KampungKu (multi-tenant)...");
 
-  const ketua = await prisma.user.upsert({
-    where: { email: "ketua@kampungku.id" },
-    update: {},
-    create: {
-      name: "Ketua RT 01",
-      email: "ketua@kampungku.id",
-      phone: "081200000001",
-      passwordHash: ketuaHash,
-      role: "KETUA_RT",
-      isActive: true,
-    },
+  // 1. SUPER_ADMIN platform (tenantId = null)
+  const superAdmin = await upsertUser({
+    email: "super@kampungku.id",
+    name: "Super Admin Platform",
+    phone: "081200000999",
+    password: "SuperAdmin1234!",
+    role: "SUPER_ADMIN",
+    tenantId: null,
   });
-  console.log(`✅ Ketua RT dibuat: ${ketua.email}`);
+  console.log(`✅ SUPER_ADMIN: ${superAdmin.email}`);
 
-  // ─── 4. Buat akun Bendahara ───────────────────────────────────────────────
-  const bendaharaHash = await bcrypt.hash("Bendahara1234!", 12);
-
-  const bendahara = await prisma.user.upsert({
-    where: { email: "bendahara@kampungku.id" },
-    update: {},
-    create: {
-      name: "Bendahara RT 01",
-      email: "bendahara@kampungku.id",
-      phone: "081200000002",
-      passwordHash: bendaharaHash,
-      role: "BENDAHARA",
-      isActive: true,
-    },
-  });
-  console.log(`✅ Bendahara dibuat: ${bendahara.email}`);
-
-  // ─── 5. Buat Jenis Iuran ──────────────────────────────────────────────────
-  const jenisIuranData = [
-    {
-      nama: "Iuran RT",
-      jumlah: 10000,
-      keterangan: "Iuran rutin bulanan RT",
-    },
-    {
-      nama: "Iuran Keamanan",
-      jumlah: 15000,
-      keterangan: "Iuran untuk biaya siskamling",
-    },
-    {
-      nama: "Iuran Sampah",
-      jumlah: 5000,
-      keterangan: "Iuran pengangkutan sampah",
-    },
-  ];
-
-  for (const data of jenisIuranData) {
-    const jenis = await prisma.jenisIuran.upsert({
-      where: { nama: data.nama },
-      update: {},
+  // 2. Setiap tenant + admin + jenis iuran
+  for (const t of TENANTS) {
+    const tenant = await prisma.rT.upsert({
+      where: { slug: t.slug },
+      update: { nama: t.nama, kelurahan: t.kelurahan, kecamatan: t.kecamatan, isActive: true },
       create: {
-        nama: data.nama,
-        jumlah: data.jumlah,
-        keterangan: data.keterangan,
-        isAktif: true,
+        slug: t.slug,
+        nama: t.nama,
+        nomorRt: t.nomorRt,
+        nomorRw: t.nomorRw,
+        kelurahan: t.kelurahan,
+        kecamatan: t.kecamatan,
+        isActive: true,
       },
     });
-    console.log(
-      `✅ Jenis iuran dibuat: ${jenis.nama} (Rp ${Number(jenis.jumlah).toLocaleString("id-ID")})`,
-    );
+    console.log(`✅ Tenant: ${tenant.nama} (slug: ${tenant.slug})`);
+
+    await upsertUser({
+      email: t.adminEmail,
+      name: t.adminName,
+      phone: t.adminPhone,
+      password: "Admin1234!",
+      role: "ADMIN",
+      tenantId: tenant.id,
+    });
+    console.log(`   ↳ ADMIN: ${t.adminEmail}`);
+
+    for (const ji of JENIS_IURAN) {
+      await prisma.jenisIuran.upsert({
+        where: { tenantId_nama: { tenantId: tenant.id, nama: ji.nama } },
+        update: { jumlah: ji.jumlah, keterangan: ji.keterangan, isAktif: true },
+        create: {
+          tenantId: tenant.id,
+          nama: ji.nama,
+          jumlah: ji.jumlah,
+          keterangan: ji.keterangan,
+          isAktif: true,
+        },
+      });
+    }
+    console.log(`   ↳ ${JENIS_IURAN.length} jenis iuran`);
   }
 
-  // ─── 6. Buat warga contoh ─────────────────────────────────────────────────
-  const wargaHash = await bcrypt.hash("Warga1234!", 12);
+  // 3. Legacy users existing — pastikan ter-link ke tenant pertama (kompat dengan data lama)
+  const firstTenant = await prisma.rT.findUnique({ where: { slug: TENANTS[0].slug } });
+  if (firstTenant) {
+    await upsertUser({
+      email: "ketua@kampungku.id",
+      name: "Ketua RT 01",
+      phone: "081200000001",
+      password: "Ketua1234!",
+      role: "KETUA_RT",
+      tenantId: firstTenant.id,
+    });
+    await upsertUser({
+      email: "bendahara@kampungku.id",
+      name: "Bendahara RT 01",
+      phone: "081200000002",
+      password: "Bendahara1234!",
+      role: "BENDAHARA",
+      tenantId: firstTenant.id,
+    });
 
-  const wargaUser = await prisma.user.upsert({
-    where: { email: "budi@kampungku.id" },
-    update: {},
-    create: {
-      name: "Budi Santoso",
+    const wargaUser = await upsertUser({
       email: "budi@kampungku.id",
+      name: "Budi Santoso",
       phone: "081234567890",
-      passwordHash: wargaHash,
+      password: "Warga1234!",
       role: "WARGA",
-      isActive: true,
-    },
-  });
+      tenantId: firstTenant.id,
+    });
 
-  await prisma.warga.upsert({
-    where: { userId: wargaUser.id },
-    update: {},
-    create: {
-      userId: wargaUser.id,
-      nik: "3201012501900001",
-      noKk: "3201011234567890",
-      alamat: "Jl. Contoh No. 1, RT 01 / RW 01",
-      rtId: rt.id,
-      statusTinggal: "TETAP",
-      tglMasuk: new Date("2020-01-01"),
-    },
-  });
-  console.log(`✅ Warga contoh dibuat: ${wargaUser.name}`);
+    const existingWarga = await prisma.warga.findUnique({ where: { userId: wargaUser.id } });
+    if (!existingWarga) {
+      await prisma.warga.create({
+        data: {
+          userId: wargaUser.id,
+          nik: "3201012501900001",
+          noKk: "3201011234567890",
+          alamat: "Jl. Contoh No. 1, RT 01 / RW 01",
+          rtId: firstTenant.id,
+          statusTinggal: "TETAP",
+          tglMasuk: new Date("2020-01-01"),
+        },
+      });
+    }
+    console.log(`✅ Legacy users + warga di tenant ${firstTenant.slug}`);
+  }
 
   console.log("\n🎉 Seeding selesai!");
   console.log("─────────────────────────────────────────");
-  console.log("Akun yang tersedia:");
-  console.log("  Admin     → admin@kampungku.id      / Admin1234!");
-  console.log("  Ketua RT  → ketua@kampungku.id      / Ketua1234!");
-  console.log("  Bendahara → bendahara@kampungku.id  / Bendahara1234!");
-  console.log("  Warga     → budi@kampungku.id       / Warga1234!");
+  console.log("Akun platform:");
+  console.log("  SUPER_ADMIN → super@kampungku.id          / SuperAdmin1234!");
+  console.log("Akun tenant RT 01 (Kelurahan Contoh):");
+  console.log("  ADMIN       → admin@kampungku.id          / Admin1234!");
+  console.log("  KETUA_RT    → ketua@kampungku.id          / Ketua1234!");
+  console.log("  BENDAHARA   → bendahara@kampungku.id      / Bendahara1234!");
+  console.log("  WARGA       → budi@kampungku.id           / Warga1234!");
+  console.log("Akun tenant RT 02 (Kelurahan Mawar):");
+  console.log("  ADMIN       → admin.mawar@kampungku.id    / Admin1234!");
   console.log("─────────────────────────────────────────");
 }
 

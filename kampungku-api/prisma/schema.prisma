@@ -13,6 +13,7 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   KETUA_RT
   BENDAHARA
@@ -65,6 +66,7 @@ enum JenisSurat {
 
 model User {
   id           String    @id @default(uuid())
+  tenantId     String?   @map("tenant_id")
   name         String    @db.VarChar(100)
   email        String    @unique @db.VarChar(150)
   phone        String?   @db.VarChar(15)
@@ -74,24 +76,26 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  tenant        RT?               @relation(fields: [tenantId], references: [id])
   warga         Warga?
   refreshTokens RefreshToken[]
   pengumuman    Pengumuman[]
   approvedSurat PermohonanSurat[] @relation("ApprovedBy")
 
+  @@index([tenantId])
   @@map("users")
 }
 
 model Warga {
   id           String        @id @default(uuid())
   userId       String        @unique @map("user_id")
-  nik          String        @unique @db.Char(16)       // NIK KTP — hanya nomor, tidak ada foto
-  noKk         String        @db.Char(16) @map("no_kk") // No. Kartu Keluarga — hanya nomor
+  nik          String        @db.Char(16)
+  noKk         String        @db.Char(16) @map("no_kk")
   alamat       String
   rtId         String        @map("rt_id")
   statusTinggal StatusTinggal @default(TETAP) @map("status_tinggal")
   tglMasuk     DateTime?     @map("tgl_masuk") @db.Date
-  fotoProfilUrl String?      @map("foto_profil_url")   // Cloudinary URL, opsional
+  fotoProfilUrl String?      @map("foto_profil_url")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
@@ -102,6 +106,8 @@ model Warga {
   permohonanSurat  PermohonanSurat[]
   pengaduan        Pengaduan[]
 
+  @@unique([rtId, nik])
+  @@index([rtId])
   @@map("warga")
 }
 
@@ -110,7 +116,7 @@ model AnggotaKeluarga {
   wargaId    String   @map("warga_id")
   nama       String   @db.VarChar(100)
   nik        String   @db.Char(16)
-  hubungan   String   @db.VarChar(30)  // Suami, Istri, Anak, dll
+  hubungan   String   @db.VarChar(30)
   tglLahir   DateTime @map("tgl_lahir") @db.Date
   jenisKelamin String @map("jenis_kelamin") @db.VarChar(10)
   pekerjaan  String?  @db.VarChar(100)
@@ -121,30 +127,44 @@ model AnggotaKeluarga {
   @@map("anggota_keluarga")
 }
 
+// RT = entitas tenant. Satu RT = satu tenant.
 model RT {
-  id        String @id @default(uuid())
-  nomorRt   String @map("nomor_rt") @db.VarChar(5)
-  nomorRw   String @map("nomor_rw") @db.VarChar(5)
-  kelurahan String @db.VarChar(100)
-  kecamatan String @db.VarChar(100)
+  id        String   @id @default(uuid())
+  nama      String   @db.VarChar(150)
+  slug      String   @unique @db.VarChar(80)
+  nomorRt   String   @map("nomor_rt") @db.VarChar(5)
+  nomorRw   String   @map("nomor_rw") @db.VarChar(5)
+  kelurahan String   @db.VarChar(100)
+  kecamatan String   @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  warga        Warga[]
-  iuranTagihan IuranTagihan[]
-  pengumuman   Pengumuman[]
+  users           User[]
+  warga           Warga[]
+  iuranTagihan    IuranTagihan[]
+  pengumuman      Pengumuman[]
+  jenisIuran      JenisIuran[]
+  permohonanSurat PermohonanSurat[]
+  pengaduan       Pengaduan[]
+  refreshTokens   RefreshToken[]
 
-  @@unique([nomorRt, nomorRw])
   @@map("rt_rw")
 }
 
 model JenisIuran {
   id          String  @id @default(uuid())
-  nama        String  @unique  @db.VarChar(100)  // "Iuran Keamanan", "Iuran Sampah", dll
+  tenantId    String  @map("tenant_id")
+  nama        String  @db.VarChar(100)
   jumlah      Decimal @db.Decimal(10, 2)
   keterangan  String?
   isAktif     Boolean @default(true) @map("is_aktif")
 
+  tenant       RT             @relation(fields: [tenantId], references: [id])
   iuranTagihan IuranTagihan[]
 
+  @@unique([tenantId, nama])
+  @@index([tenantId])
   @@map("jenis_iuran")
 }
 
@@ -153,7 +173,7 @@ model IuranTagihan {
   wargaId      String      @map("warga_id")
   jenisIuranId String      @map("jenis_iuran_id")
   rtId         String      @map("rt_id")
-  bulan        Int         // 1–12
+  bulan        Int
   tahun        Int
   jumlah       Decimal     @db.Decimal(10, 2)
   status       StatusIuran @default(BELUM_BAYAR)
@@ -190,6 +210,7 @@ model Pengumuman {
 
 model PermohonanSurat {
   id          String      @id @default(uuid())
+  tenantId    String      @map("tenant_id")
   wargaId     String      @map("warga_id")
   jenisSurat  JenisSurat  @map("jenis_surat")
   keperluan   String
@@ -200,15 +221,18 @@ model PermohonanSurat {
   tglDiajukan DateTime    @default(now()) @map("tgl_diajukan")
   tglDiproses DateTime?   @map("tgl_diproses")
 
+  tenant   RT    @relation(fields: [tenantId], references: [id])
   warga    Warga @relation(fields: [wargaId], references: [id])
   approver User? @relation("ApprovedBy", fields: [approvedBy], references: [id])
 
+  @@index([tenantId])
   @@map("permohonan_surat")
 }
 
 model Pengaduan {
   id          String          @id @default(uuid())
-  wargaId     String?         @map("warga_id")  // nullable = anonim
+  tenantId    String          @map("tenant_id")
+  wargaId     String?         @map("warga_id")
   judul       String          @db.VarChar(200)
   deskripsi   String
   isAnonim    Boolean         @default(false) @map("is_anonim")
@@ -217,19 +241,24 @@ model Pengaduan {
   createdAt   DateTime        @default(now()) @map("created_at")
   updatedAt   DateTime        @updatedAt @map("updated_at")
 
-  warga Warga? @relation(fields: [wargaId], references: [id])
+  tenant RT     @relation(fields: [tenantId], references: [id])
+  warga  Warga? @relation(fields: [wargaId], references: [id])
 
+  @@index([tenantId])
   @@map("pengaduan")
 }
 
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
+  tenantId  String?  @map("tenant_id")
   token     String   @unique
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant RT?  @relation(fields: [tenantId], references: [id])
 
+  @@index([tenantId])
   @@map("refresh_tokens")
 }

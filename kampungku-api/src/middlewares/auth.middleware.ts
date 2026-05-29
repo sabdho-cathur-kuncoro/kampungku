@@ -4,6 +4,12 @@ import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env';
 import { AppError } from '../utils/errors';
 
+interface AccessTokenPayload {
+  sub: string;
+  role: Role;
+  tenantId: string | null;
+}
+
 export const authenticate = (req: Request, _res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
 
@@ -14,10 +20,22 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
   const token = authHeader.slice(7);
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as { sub: string; role: Role };
-    req.user = { id: payload.sub, role: payload.role };
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+    req.user = { id: payload.sub, role: payload.role, tenantId: payload.tenantId ?? null };
     next();
   } catch {
     next(new AppError('Token tidak valid', 401));
   }
 };
+
+export const authorize =
+  (...roles: Role[]) =>
+  (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      return next(new AppError('Tidak terautentikasi', 401));
+    }
+    if (!roles.includes(req.user.role)) {
+      return next(new AppError('Tidak memiliki akses', 403));
+    }
+    next();
+  };

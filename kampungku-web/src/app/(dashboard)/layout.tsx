@@ -9,13 +9,22 @@ import { useAuthStore } from '@/store/authStore';
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, accessToken } = useAuthStore();
+  const { user, accessToken, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (!user || !accessToken) {
       router.replace('/login');
     }
-  }, [user, accessToken, router]);
+  }, [_hasHydrated, user, accessToken, router]);
+
+  if (!_hasHydrated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-stone-50">
+        <div className="w-8 h-8 rounded-full border-4 border-green-600 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   if (!user || !accessToken) return null;
 

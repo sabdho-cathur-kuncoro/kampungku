@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { Users, Wallet, Bell, MessageSquare, FileText, Home } from 'lucide-react';
 import { StatCard } from '@/components/shared/StatCard';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -102,7 +103,7 @@ export default function BerandaPage() {
             { href: '/pengaduan', icon: MessageSquare, label: 'Pengaduan', color: 'text-red-600 bg-red-50' },
             { href: '/pengaturan', icon: Home, label: 'Pengaturan', color: 'text-stone-600 bg-stone-100' },
           ].map(({ href, icon: Icon, label, color }) => (
-            <a
+            <Link
               key={href}
               href={href}
               className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-stone-200 hover:border-stone-300 hover:shadow-sm transition-all"
@@ -111,7 +112,7 @@ export default function BerandaPage() {
                 <Icon size={20} />
               </div>
               <span className="font-heading text-xs font-semibold text-stone-700">{label}</span>
-            </a>
+            </Link>
           ))}
         </div>
       </div>

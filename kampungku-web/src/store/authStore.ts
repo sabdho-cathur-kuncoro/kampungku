@@ -3,9 +3,11 @@ import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
 
 interface AuthState {
+  _hasHydrated: boolean;
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  setHasHydrated: (v: boolean) => void;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
   updateUser: (user: User) => void;
@@ -14,12 +16,14 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
+      _hasHydrated: false,
       user: null,
       accessToken: null,
       refreshToken: null,
 
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
+
       setAuth: (user, accessToken, refreshToken) => {
-        // Also write to localStorage so api.ts interceptor can read them
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         set({ user, accessToken, refreshToken });
@@ -40,6 +44,9 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

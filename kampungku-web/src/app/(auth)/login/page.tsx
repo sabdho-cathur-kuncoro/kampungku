@@ -40,7 +40,8 @@ export default function LoginPage() {
       );
       setAuth(data.data.user, data.data.accessToken, data.data.refreshToken);
       toast.success('Selamat datang, ' + data.data.user.name);
-      router.push('/beranda');
+      const dest = data.data.user.role === 'WARGA' ? '/pengumuman' : '/beranda';
+      router.push(dest);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??

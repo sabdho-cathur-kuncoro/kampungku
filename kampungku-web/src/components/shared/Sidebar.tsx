@@ -20,15 +20,31 @@ import { useUiStore } from '@/store/uiStore';
 import { ROLE_LABELS } from '@/lib/auth';
 import type { Role } from '@/types';
 
-const NAV_ITEMS = [
-  { href: '/beranda', icon: Home, label: 'Beranda' },
-  { href: '/warga', icon: Users, label: 'Data Warga' },
-  { href: '/iuran', icon: Wallet, label: 'Iuran' },
+type NavItem = {
+  href: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  roles?: Role[];
+};
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    href: '/beranda', icon: Home, label: 'Beranda',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'KETUA_RT', 'BENDAHARA', 'SEKRETARIS'],
+  },
+  {
+    href: '/warga', icon: Users, label: 'Data Warga',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'KETUA_RT', 'BENDAHARA', 'SEKRETARIS'],
+  },
+  {
+    href: '/iuran', icon: Wallet, label: 'Iuran',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'BENDAHARA'],
+  },
   { href: '/pengumuman', icon: Bell, label: 'Pengumuman' },
   { href: '/surat', icon: FileText, label: 'Surat' },
   { href: '/pengaduan', icon: MessageSquare, label: 'Pengaduan' },
   { href: '/pengaturan', icon: Settings, label: 'Pengaturan' },
-] as const;
+];
 
 const ROLE_BADGE_CLASS: Record<Role, string> = {
   SUPER_ADMIN: 'bg-purple-900/40 text-purple-300',
@@ -72,7 +88,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+        {NAV_ITEMS.filter(({ roles }) => !roles || !user?.role || roles.includes(user.role as Role)).map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link

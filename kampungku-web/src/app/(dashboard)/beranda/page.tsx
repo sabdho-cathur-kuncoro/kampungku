@@ -96,13 +96,14 @@ export default function BerandaPage() {
         <h2 className="font-heading text-sm font-semibold text-stone-700 mb-3">Akses Cepat</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { href: '/warga', icon: Users, label: 'Warga', color: 'text-blue-600 bg-blue-50' },
-            { href: '/iuran', icon: Wallet, label: 'Iuran', color: 'text-green-600 bg-green-50' },
+            { href: '/warga', icon: Users, label: 'Warga', color: 'text-blue-600 bg-blue-50', roles: ['SUPER_ADMIN', 'ADMIN', 'KETUA_RT', 'BENDAHARA', 'SEKRETARIS'] },
+            { href: '/iuran', icon: Wallet, label: 'Iuran', color: 'text-green-600 bg-green-50', roles: ['SUPER_ADMIN', 'ADMIN', 'BENDAHARA'] },
             { href: '/pengumuman', icon: Bell, label: 'Pengumuman', color: 'text-amber-600 bg-amber-50' },
             { href: '/surat', icon: FileText, label: 'Surat', color: 'text-purple-600 bg-purple-50' },
             { href: '/pengaduan', icon: MessageSquare, label: 'Pengaduan', color: 'text-red-600 bg-red-50' },
             { href: '/pengaturan', icon: Home, label: 'Pengaturan', color: 'text-stone-600 bg-stone-100' },
-          ].map(({ href, icon: Icon, label, color }) => (
+          ].filter(({ roles }) => !roles || !user?.role || roles.includes(user.role))
+           .map(({ href, icon: Icon, label, color }) => (
             <Link
               key={href}
               href={href}

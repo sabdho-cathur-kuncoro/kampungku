@@ -300,4 +300,25 @@ export const wargaService = {
 
     await prisma.anggotaKeluarga.delete({ where: { id: kidId } });
   },
+
+  async exportAll(tenantId: string, status?: StatusTinggal) {
+    return prisma.warga.findMany({
+      where: {
+        rtId: tenantId,
+        ...(status ? { statusTinggal: status } : {}),
+      },
+      select: {
+        nik: true,
+        noKk: true,
+        alamat: true,
+        statusTinggal: true,
+        tglMasuk: true,
+        user: { select: { name: true, email: true, phone: true } },
+        anggotaKeluarga: {
+          select: { nama: true, nik: true, hubungan: true, tglLahir: true, jenisKelamin: true, pekerjaan: true, pendidikan: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  },
 };

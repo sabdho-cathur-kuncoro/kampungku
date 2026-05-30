@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import type { StatusTinggal } from '@prisma/client';
 import { wargaService } from './warga.service';
 import { successResponse } from '../../utils/response';
+import { streamWargaXlsx, streamWargaPDF } from '../../utils/exportWarga';
+import { prisma } from '../../config/database';
+import { AppError } from '../../utils/errors';
 import type { CreateWargaInput, UpdateWargaInput, CreateKeluargaInput, UpdateKeluargaInput } from './warga.schema';
 
 export const listWargaController = async (
@@ -145,9 +148,32 @@ export const deleteKeluargaController = async (
 };
 
 export const exportWargaController = async (
-  _req: Request,
+  req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ): Promise<void> => {
-  res.status(501).json({ success: false, message: 'Fitur export belum tersedia' });
+  try {
+    const format = typeof req.query.format === 'string' ? req.query.format : 'xlsx';
+    if (format !== 'pdf' && format !== 'xlsx') {
+      throw new AppError('Format tidak valid. Gunakan ?format=pdf atau ?format=xlsx', 400);
+    }
+
+    const status =
+      typeof req.query.status === 'string' ? (req.query.status as StatusTinggal) : undefined;
+
+    const [rows, rt] = await Promise.all([
+      wargaService.exportAll(req.tenantId!, status),
+      prisma.rT.findUnique({ where: { id: req.tenantId! }, select: { nama: true } }),
+    ]);
+
+    const namaRT = rt?.nama ?? 'RT';
+
+    if (format === 'xlsx') {
+      await streamWargaXlsx(res, rows, namaRT);
+    } else {
+      streamWargaPDF(res, rows, namaRT);
+    }
+  } catch (err) {
+    next(err);
+  }
 };

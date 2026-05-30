@@ -9,6 +9,11 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES: z.string().default('15m'),
   JWT_REFRESH_EXPIRES: z.string().default('7d'),
+  // WhatsApp (Fonnte) — optional; reminders skip silently if absent
+  FONNTE_API_KEY: z.string().optional(),
+  FONNTE_SENDER_NUMBER: z.string().optional(),
+  // Cron
+  IURAN_REMINDER_DAY: z.coerce.number().int().min(1).max(28).default(25),
 });
 
 const parsed = envSchema.safeParse(process.env);

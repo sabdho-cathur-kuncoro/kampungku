@@ -10,6 +10,7 @@ import { authRouter } from './modules/auth/auth.router';
 import { adminRouter } from './modules/tenant/tenant.router';
 import { wargaRouter } from './modules/warga/warga.router';
 import { iuranRouter } from './modules/iuran/iuran.router';
+import { pengumumanRouter } from './modules/pengumuman/pengumuman.router';
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/warga', wargaRouter);
 app.use('/api/v1/iuran', iuranRouter);
+app.use('/api/v1/pengumuman', pengumumanRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' });

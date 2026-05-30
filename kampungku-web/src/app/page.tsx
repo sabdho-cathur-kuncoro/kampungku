@@ -230,18 +230,17 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             {[
               { role: 'Admin', color: 'bg-red-50 text-red-700 border-red-200' },
               { role: 'Ketua RT', color: 'bg-green-50 text-green-700 border-green-200' },
               { role: 'Bendahara', color: 'bg-amber-50 text-amber-700 border-amber-200' },
               { role: 'Sekretaris', color: 'bg-blue-50 text-blue-700 border-blue-200' },
               { role: 'Warga', color: 'bg-stone-50 text-stone-700 border-stone-200' },
-              { role: 'Super Admin', color: 'bg-purple-50 text-purple-700 border-purple-200' },
             ].map(({ role, color }) => (
               <div
                 key={role}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-3 font-heading font-semibold text-sm ${color}`}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-5 py-3 font-heading font-semibold text-sm ${color}`}
               >
                 <CheckCircle2 size={14} />
                 {role}

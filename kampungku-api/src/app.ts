@@ -13,6 +13,7 @@ import { iuranRouter } from './modules/iuran/iuran.router';
 import { pengumumanRouter } from './modules/pengumuman/pengumuman.router';
 import { suratRouter } from './modules/surat/surat.router';
 import { pengaduanRouter } from './modules/pengaduan/pengaduan.router';
+import { dashboardRouter } from './modules/dashboard/dashboard.router';
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use('/api/v1/iuran', iuranRouter);
 app.use('/api/v1/pengumuman', pengumumanRouter);
 app.use('/api/v1/surat', suratRouter);
 app.use('/api/v1/pengaduan', pengaduanRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan' });

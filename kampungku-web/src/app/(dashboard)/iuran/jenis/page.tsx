@@ -27,7 +27,7 @@ import type { JenisIuran } from '@/types';
 
 const formSchema = z.object({
   nama: z.string().min(3, 'Minimal 3 karakter').max(100),
-  jumlah: z.number().positive('Harus lebih dari 0'),
+  jumlah: z.number().refine((v) => !isNaN(v) && v > 0, 'Masukkan tarif lebih dari 0'),
   keterangan: z.string().max(500).optional(),
   isAktif: z.enum(['true', 'false']).optional(),
 });
@@ -301,7 +301,7 @@ export default function JenisIuranPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              onClick={() => router.back()}
+              onClick={() => router.push('/iuran')}
               className="h-9 font-heading font-semibold text-sm text-stone-600"
             >
               <ArrowLeft size={14} className="mr-1.5" />

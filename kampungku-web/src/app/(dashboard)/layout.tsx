@@ -4,8 +4,11 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/shared/Sidebar';
 import { Header } from '@/components/shared/Header';
+import { ChatWidget } from '@/components/shared/ChatWidget';
 import { Providers } from '@/components/providers';
 import { useAuthStore } from '@/store/authStore';
+
+const CHATBOT_ROLES = ['ADMIN', 'KETUA_RT', 'BENDAHARA', 'SEKRETARIS', 'SUPER_ADMIN'] as const;
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,6 +38,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <Header />
         <main className="flex-1 overflow-y-auto p-5">{children}</main>
       </div>
+      {user && CHATBOT_ROLES.includes(user.role as typeof CHATBOT_ROLES[number]) && (
+        <ChatWidget />
+      )}
     </div>
   );
 }

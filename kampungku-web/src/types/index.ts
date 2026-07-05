@@ -150,6 +150,34 @@ export interface Pengaduan {
   warga: (Pick<Warga, 'id'> & { user: Pick<User, 'id' | 'name'> }) | null;
 }
 
+// ─── Chatbot ──────────────────────────────────────────────────────────────────
+
+export type MessageRole = 'USER' | 'ASSISTANT';
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: MessageRole;
+  content: string;
+  createdAt: string;
+}
+
+export interface ChatQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
+export interface ChatSendResponse {
+  message: string;
+  quota: ChatQuota;
+}
+
+export interface ChatHistoryResponse {
+  messages: ChatMessage[];
+  quota: ChatQuota;
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardStats {

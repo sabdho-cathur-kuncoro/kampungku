@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
@@ -43,6 +44,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/pengumuman', icon: Bell, label: 'Pengumuman' },
   { href: '/surat', icon: FileText, label: 'Surat' },
   { href: '/pengaduan', icon: MessageSquare, label: 'Pengaduan' },
+  {
+    href: '/chatbot', icon: Bot, label: 'Asisten AI',
+    roles: ['SUPER_ADMIN', 'ADMIN', 'KETUA_RT', 'BENDAHARA', 'SEKRETARIS'],
+  },
   { href: '/pengaturan', icon: Settings, label: 'Pengaturan' },
 ];
 

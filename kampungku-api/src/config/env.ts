@@ -15,6 +15,10 @@ const envSchema = z.object({
   FONNTE_SENDER_NUMBER: z.string().optional(),
   // Cron
   IURAN_REMINDER_DAY: z.coerce.number().int().min(1).max(28).default(25),
+  // AI Chatbot
+  GEMINI_API_KEY: z.string().optional(),
+  CHATBOT_DAILY_LIMIT: z.coerce.number().int().min(1).default(5),
+  CHATBOT_HISTORY_WINDOW: z.coerce.number().int().min(1).default(10),
 });
 
 const parsed = envSchema.safeParse(process.env);

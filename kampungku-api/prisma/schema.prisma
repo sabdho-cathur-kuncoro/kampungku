@@ -64,6 +64,11 @@ enum JenisSurat {
   LAINNYA
 }
 
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
 model User {
   id           String    @id @default(uuid())
   tenantId     String?   @map("tenant_id")
@@ -81,6 +86,7 @@ model User {
   refreshTokens RefreshToken[]
   pengumuman    Pengumuman[]
   approvedSurat PermohonanSurat[] @relation("ApprovedBy")
+  chatSessions  ChatSession[]
 
   @@index([tenantId])
   @@map("users")
@@ -148,6 +154,7 @@ model RT {
   permohonanSurat PermohonanSurat[]
   pengaduan       Pengaduan[]
   refreshTokens   RefreshToken[]
+  chatSessions    ChatSession[]
 
   @@map("rt_rw")
 }
@@ -261,4 +268,32 @@ model RefreshToken {
 
   @@index([tenantId])
   @@map("refresh_tokens")
+}
+
+model ChatSession {
+  id        String      @id @default(uuid())
+  userId    String      @map("user_id")
+  tenantId  String      @map("tenant_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant   RT            @relation(fields: [tenantId], references: [id])
+  messages ChatMessage[]
+
+  @@index([userId, tenantId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String      @id @default(uuid())
+  sessionId String      @map("session_id")
+  role      MessageRole
+  content   String
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("chat_messages")
 }

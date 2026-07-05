@@ -27,9 +27,7 @@ import type { JenisIuran } from '@/types';
 
 const formSchema = z.object({
   nama: z.string().min(3, 'Minimal 3 karakter').max(100),
-  jumlah: z
-    .number()
-    .positive('Harus lebih dari 0'),
+  jumlah: z.number().positive('Harus lebih dari 0'),
   keterangan: z.string().max(500).optional(),
   isAktif: z.enum(['true', 'false']).optional(),
 });
@@ -107,7 +105,7 @@ function JenisIuranFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-heading font-bold">
+          <DialogTitle className="font-heading font-semibold">
             {isEdit ? 'Edit Jenis Iuran' : 'Tambah Jenis Iuran'}
           </DialogTitle>
         </DialogHeader>
@@ -134,10 +132,7 @@ function JenisIuranFormDialog({
               type="number"
               placeholder="Mis. 5000"
               className="font-mono"
-              defaultValue={item?.jumlah}
-              onChange={(e) =>
-                setValue('jumlah', e.target.value ? Number(e.target.value) : ('' as unknown as number))
-              }
+              {...register('jumlah', { valueAsNumber: true })}
             />
             {errors.jumlah && (
               <p className="text-xs text-red-500">{errors.jumlah.message}</p>
@@ -334,6 +329,7 @@ export default function JenisIuranPage() {
       />
 
       <JenisIuranFormDialog
+        key={editItem?.id ?? 'create'}
         open={formOpen}
         onOpenChange={(v) => {
           setFormOpen(v);

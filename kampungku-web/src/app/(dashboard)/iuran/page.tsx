@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
-import { Plus, BarChart2, Loader2 } from 'lucide-react';
+import { Plus, BarChart2, Loader2, Settings } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { DataTable, type Column } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -461,6 +461,16 @@ export default function IuranPage() {
               <BarChart2 size={14} className="mr-1.5" />
               Laporan
             </Button>
+            {canManage && (
+              <Button
+                variant="outline"
+                onClick={() => router.push('/iuran/jenis')}
+                className="h-9 font-heading font-semibold text-sm"
+              >
+                <Settings size={14} className="mr-1.5" />
+                Kelola Jenis
+              </Button>
+            )}
             {canManage && (
               <Button
                 onClick={() => setCreateOpen(true)}
